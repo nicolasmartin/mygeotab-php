@@ -13,6 +13,36 @@ class ClientTest extends TestCase
         }
     }
 
+    public function testLoggerInjection()
+    {
+      $logger = new \Monolog\Logger('test-logger');
+
+      $logger->pushHandler(new \Monolog\Handler\TestHandler);
+
+      $api = new Geotab\API(
+        'incorect_username', 
+        'incorrect_password', 
+        'incorrect_database', 
+        'my.geotab.com', /* need to specify the URL before injecting the logger */
+        $logger
+      );
+
+      try {
+        $api->authenticate();
+      } catch(\Geotab\MyGeotabException $e) {
+        $e;
+        $handlers = $logger->getHandlers();
+
+        /**
+         * @var $testhandler \Monolog\Handler\TestHandler
+         */
+        $testhandler = $handlers[0];
+        
+        // We are just testing that there is one log that was emitted from the API Client
+        $this->assertCount(1, $testhandler->getRecords());
+      }
+    }
+
     public function testCall()
     {
         $api = new Geotab\API(MYGEOTAB_USERNAME, MYGEOTAB_PASSWORD, MYGEOTAB_DATABASE);
@@ -109,6 +139,7 @@ class ClientTest extends TestCase
             "id" => "b10000000000",
             "name" => "Whoops"
         ]], function ($result) use ($api) {
+            $result;$api;
             $this->fail("Result shouldn't be generated");
         }, function ($errorResult) {
             $this->assertArrayHasKey("error", $errorResult);
@@ -125,4 +156,5 @@ class ClientTest extends TestCase
             $this->assertStringContainsString("Exception", $e->getMessage());
         }
     }
+
 }

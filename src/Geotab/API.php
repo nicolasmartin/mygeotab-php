@@ -2,8 +2,11 @@
 namespace Geotab;
 
 use GuzzleHttp\Client;
+use GuzzleHttp\MessageFormatter;
+use GuzzleHttp\Middleware;
 use Monolog\Logger;
 use Monolog\Handler\StreamHandler;
+use Psr\Log\LoggerInterface;
 
 /**
  * Class API
@@ -22,14 +25,21 @@ class API
     private $client = null;
 
     /**
+     * @var LoggerInterface
+     */
+    private $logger;
+
+    /**
      * @param string $username Username/email address for MyGeotab server
      * @param string $password Password for MyGeotab server
      * @param string $database Database name on MyGeotab
      * @param string $server Server domain name on the MyGeotab federation (i.e. my.geotab.com)
      * @throws \Exception
      */
-    public function __construct($username, $password = null, $database = null, $server = "my.geotab.com")
+    public function __construct($username, $password = null, $database = null, $server = "my.geotab.com", LoggerInterface $logger = null)
     {
+        $this->logger = $logger;
+
         if ($username == null) {
             throw new \Exception("Username is required");
         }
@@ -220,23 +230,12 @@ class API
         return (isset($arr[$key]) || array_key_exists($key, $arr));
     }
 
-    private function createHttpClient($logFilename = "api.log")
+    private function createHttpClient()
     {
         // TODO: Improve mygeotab-php and add logging ability
-        if (false) {
+        if ($this->logger) {
             $stack = \GuzzleHttp\HandlerStack::create();
-            $formattingDefault = [];
-            $logger = (new \Monolog\Logger("mygeotab-php"))->pushHandler(
-                new \Monolog\Handler\RotatingFileHandler($logFilename)
-            );
-            // Example:
-            // [
-            //     '{method} {uri} HTTP/{version} {req_body}',
-            //     'RESPONSE: {code} - {res_body}',
-            // ]
-            foreach ($messageFormats as $messageFormat) {
-                $stack->unshift(\GuzzleHttp\Middleware::log($logger, new \GuzzleHttp\MessageFormatter($messageFormat)));
-            }
+            $stack->unshift(Middleware::log($this->logger, new MessageFormatter()));
         }
         return new Client(isset($stack) ? ['handler' => $stack] : []);
     }
